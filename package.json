@@ -1,0 +1,14 @@
+{
+  "name": "json-typescript-helper",
+  "version": "0.0.1",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "node index.js example"
+  },
+  "dependencies": {
+    "@phenomnomnominal/tsquery": "^4.0.0",
+    "node-watch": "^0.6.3",
+    "typescript": "^3.7.3"
+  }
+}
