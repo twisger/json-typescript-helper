@@ -25,7 +25,11 @@ const walkDir = (dir, callback) => {
 
 const generateHelperCode = (input) => {
   const ast = tsquery.ast(input);
-  const nodes = tsquery(ast, "InterfaceDeclaration");
+  let nodes = tsquery(ast, "InterfaceDeclaration");
+  //filter all signature not PropertySignature(code: 157)
+  nodes.forEach(node => {
+    node.members = node.members.filter(member => member.kind === 157);
+  });
   const interfaceList = nodes.map(item => {
     if (item.heritageClauses) {
       const parentName = item.heritageClauses[0].getText().replace("extends ", "");
@@ -34,19 +38,27 @@ const generateHelperCode = (input) => {
       return {keys: item.members.map(member => member.name.escapedText), name: item.name.escapedText};
     }
   });
+  /* resolve multiple extend */
+  interfaceList.forEach(item => {
+
+  })
+  */
   const interfaceListDump = interfaceList.map(item => {
     let keys = item.keys;
     if (item.isHeritage) {
-      const parentKeys = interfaceList.filter(parent => parent.name === item.parentName)[0].keys;
+      const parent = interfaceList.filter(parent => parent.name === item.parentName)[0];
+      const parentKeys = parent ? parent.keys : [];
       keys = Array.from(new Set([...item.keys, ...parentKeys]));
     }
-    return `${item.name}: ['${keys.join("', '")}']`;
+    return {code: `${item.name}: ['${keys.join("', '")}']`, keys: keys};
   });
+  // must filter empty in last step to support extends type
+  const resultList = interfaceListDump.filter(item => item.keys.length > 0).map(item => item.code);
   const output =
 `import { pick } from 'lodash';
 
 export const keyMap: { [index: string]: string[] } = {
-  ${interfaceListDump.join(",\n  ") + ','}
+  ${resultList.join(",\n  ") + ","}
 };
 export default (data: any, key: string) => {
   if (Array.isArray(data)) {
@@ -62,7 +74,7 @@ export default (data: any, key: string) => {
 const resolveFile = (name) => {
   if (name.match(/types\.ts$/)) {
     const fullPath = path.join(".", name);
-    const input = fs.readFile(fullPath, "utf-8", (err, input) => {
+    fs.readFile(fullPath, "utf-8", (err, input) => {
       const output = generateHelperCode(input);
       fs.writeFile(path.join(".", name.replace(".ts", ".helper.ts")), output, (err) => {
         if (err) {
